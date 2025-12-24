@@ -28,6 +28,7 @@ meta_block fusion(meta_block block, int ok);
 meta_block get_pointer_to_meta_block(void *ptr);
 int valid_addr(void *p);
 void copy_block(meta_block original, meta_block copy);
+meta_block find_last_block(void);
 void reset_heap();
 
 
@@ -348,6 +349,83 @@ void test_my_realloc_same_size(void) {
     CU_ASSERT_EQUAL(p, result);
     CU_ASSERT_EQUAL(p_block->size, result_block->size);
 }
+
+void test_my_realloc_split(void) {
+    void *p = my_malloc(64);
+    void *result = my_realloc(p, 24);
+    meta_block first = get_pointer_to_meta_block(result);
+    CU_ASSERT_EQUAL(first->size, 24);
+    CU_ASSERT_PTR_NOT_NULL(first);
+    CU_ASSERT_PTR_NOT_NULL(first->next);
+    CU_ASSERT_EQUAL(first->next->size, 8);
+}
+
+void test_my_realloc_fusion(void) {
+    void *first = my_malloc(16);
+    char *second = (char *) my_malloc(8);
+    void *third = my_malloc(24);
+    void *fourth = my_malloc(16);
+    my_free(first);
+    my_free(third);
+    second[0] = 'a';
+    second[1] = 'b';
+    second[2] = 'c';
+    second = (char *)my_realloc(second, 104);
+    meta_block result_block = get_pointer_to_meta_block(second);
+    meta_block fourth_block = get_pointer_to_meta_block(fourth);
+    CU_ASSERT_EQUAL(result_block->size, 112);
+    CU_ASSERT_EQUAL(result_block->next, fourth_block);
+    CU_ASSERT_EQUAL(result_block->prev, NULL);
+    CU_ASSERT_EQUAL(second[0], 'a');
+    CU_ASSERT_EQUAL(second[1], 'b');
+    CU_ASSERT_EQUAL(second[2], 'c');
+}
+
+void test_my_realloc_fusion_split(void) {
+    void *first = my_malloc(16);
+    char *second = (char *) my_malloc(8);
+    void *third = my_malloc(24+32);
+    void *fourth = my_malloc(16);
+    my_free(first);
+    my_free(third);
+    second[0] = 'a';
+    second[1] = 'b';
+    second = my_realloc(second, 104);
+    meta_block result_block = get_pointer_to_meta_block(second);
+    meta_block fourth_block = get_pointer_to_meta_block(fourth);
+    CU_ASSERT_EQUAL(result_block->size, 104);
+    CU_ASSERT_EQUAL(result_block->next->next, fourth_block);
+    CU_ASSERT_EQUAL(result_block->prev, NULL);
+    CU_ASSERT_EQUAL(second[0], 'a');
+    CU_ASSERT_EQUAL(second[1], 'b');
+}
+
+void test_my_realloc_new_block(void) {
+    char *first = (char *)my_malloc(24);
+    first[0] = 'a';
+    first[1] = 'b';
+    first[2] = 'c';
+    void *second = my_malloc(48);
+    char *new_p = (char *)my_realloc(first, 104);
+    meta_block first_block = get_pointer_to_meta_block(first);
+    meta_block second_block = get_pointer_to_meta_block(second);
+    meta_block new_block = get_pointer_to_meta_block(new_p);
+    CU_ASSERT_TRUE(first_block->free);
+    CU_ASSERT_EQUAL(second_block->next, new_block);
+    CU_ASSERT_EQUAL(new_block->size, 104);
+    CU_ASSERT_EQUAL(new_p[0], 'a');
+    CU_ASSERT_EQUAL(new_p[1], 'b');
+    CU_ASSERT_EQUAL(new_p[2], 'c');   
+}
+
+void test_find_last_block(void) {
+    void *m1 = my_malloc(8);
+    void *m2 = my_malloc(87);
+    void *m3 = my_malloc(11);
+    meta_block b3 = get_pointer_to_meta_block(m3); 
+    CU_ASSERT_EQUAL(find_last_block(), b3);
+}
+
 /*
 Helper method to create a suite
 @param name Pointer to the name of the suite
@@ -457,12 +535,23 @@ int main(void) {
     CU_add_test(copy_block_suite, "copy_block_content", test_copy_block_content);
     CU_add_test(copy_block_suite, "copy_block_size_restriction", test_copy_block_size_restriction);
 
+    // find_last_block suite
+
     // my_realloc suite
     CU_pSuite my_realloc_suite = create_suite("my_realloc suite");
 
     CU_add_test(my_realloc_suite, "my_realloc_null", test_my_realloc_null);
     CU_add_test(my_realloc_suite, "my_realloc_invalid_address", test_my_realloc_invalid_address);
     CU_add_test(my_realloc_suite, "my_realloc_same_size", test_my_realloc_same_size);
+    CU_add_test(my_realloc_suite, "my_realloc_split", test_my_realloc_split);
+    CU_add_test(my_realloc_suite, "my_realloc_fusion", test_my_realloc_fusion);
+    CU_add_test(my_realloc_suite, "my_realloc_fusion_split", test_my_realloc_fusion_split);
+    CU_add_test(my_realloc_suite, "my_realloc_new_block", test_my_realloc_new_block);
+
+    // find_last_block suite
+    CU_pSuite find_last_block_suite = create_suite("find_last_block suite"); 
+    
+    CU_add_test(find_last_block_suite, "find_last_block", test_find_last_block);
 
     // run the tests
     CU_basic_run_tests();
