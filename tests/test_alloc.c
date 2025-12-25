@@ -426,6 +426,20 @@ void test_find_last_block(void) {
     CU_ASSERT_EQUAL(find_last_block(), b3);
 }
 
+void test_my_realloc_split_integrity(void) {
+    char *m1 = (char*) my_malloc(48);
+    meta_block b1 = get_pointer_to_meta_block(m1);
+    for(int i = 0; i < 48 ; i++) 
+        m1[i] = 'A';
+    m1 = my_realloc(m1, 8);
+    CU_ASSERT_PTR_NOT_NULL(b1->next);
+    for(int i = 0; i < 8; i++) 
+        CU_ASSERT_EQUAL(m1[i], 'A');
+    meta_block b2 = b1->next;
+    for(int i = 0; i < b2->size; i++)
+        CU_ASSERT_EQUAL(b2->anchor[i], 'A');  
+}
+
 /*
 Helper method to create a suite
 @param name Pointer to the name of the suite
@@ -547,6 +561,7 @@ int main(void) {
     CU_add_test(my_realloc_suite, "my_realloc_fusion", test_my_realloc_fusion);
     CU_add_test(my_realloc_suite, "my_realloc_fusion_split", test_my_realloc_fusion_split);
     CU_add_test(my_realloc_suite, "my_realloc_new_block", test_my_realloc_new_block);
+    CU_add_test(my_realloc_suite, "my_realloc_split_integrity", test_my_realloc_split_integrity);
 
     // find_last_block suite
     CU_pSuite find_last_block_suite = create_suite("find_last_block suite"); 
