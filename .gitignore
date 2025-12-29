@@ -1,2 +1,4 @@
 .vscode/
 tests/test_alloc
+*:Zone.Identifier
+img/*:Zone.Identifier

@@ -549,8 +549,6 @@ int main(void) {
     CU_add_test(copy_block_suite, "copy_block_content", test_copy_block_content);
     CU_add_test(copy_block_suite, "copy_block_size_restriction", test_copy_block_size_restriction);
 
-    // find_last_block suite
-
     // my_realloc suite
     CU_pSuite my_realloc_suite = create_suite("my_realloc suite");
 
